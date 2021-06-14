@@ -2,7 +2,7 @@
 
 require_once('EvercateApiClient.php');
 
-class EvercateSignupOptions
+class Settings
 {
     /**
      * Holds the values to be used in the fields callbacks
@@ -18,29 +18,31 @@ class EvercateSignupOptions
      */
     public function __construct()
     {
-        add_action( 'admin_menu', array( $this, 'add_plugin_page' ) );
+        add_action( 'admin_menu', array( $this, 'add_to_menu' ) );
         add_action( 'admin_init', array( $this, 'page_init' ) );		
     }
 
     /**
      * Add options page
      */
-    public function add_plugin_page()
+    public function add_to_menu()
     {
         // This page will be under "Settings"
-        add_options_page(
-            'Evercate signup', 
-            'Evercate signup', 
+        add_submenu_page(
+			'evercate-signup',
+            'Settings', 
+            'Settings', 
             'manage_options', 
-            'evercate-signup', 
-            array( $this, 'create_admin_page' )
+            'evercate-signup-settings', 
+            array( $this, 'settings_page' ),
+			100
         );
     }
 
     /**
      * Options page callback
      */
-    public function create_admin_page()
+    public function settings_page()
     {
         // Set class property
         $this->options = get_option( 'evercate-signup_options' );
@@ -66,7 +68,7 @@ class EvercateSignupOptions
 		
         ?>
         <div class="wrap">
-            <h1>Evercate signup - settings</h1>
+			<h1><?php echo esc_html( get_admin_page_title() ); ?></h1>
             <form method="post" action="options.php">
             <?php
                 // This prints out all hidden setting fields
@@ -84,9 +86,6 @@ class EvercateSignupOptions
      */
     public function page_init()
     {      	
-
-
-
 
         register_setting(
             'evercate-signup_option_group', // Option group
@@ -207,5 +206,4 @@ class EvercateSignupOptions
 }
 
 if( is_admin() )
-    $EvercateSignup_settings_page = new EvercateSignupOptions
-();
+    $EvercateSignup_settings_page = new Settings();

@@ -1,0 +1,42 @@
+.ec-signup-use-styles .ec-signup-form-element {
+	margin-bottom: 1em;
+}
+
+.ec-signup-use-styles .ec-signup-label,
+.ec-signup-use-styles .ec-signup-legend {
+	display: block;
+	line-height: 1.6;
+	font-size: 1em;
+	font-weight: 700;
+}
+
+.ec-signup-use-styles .ec-signup-label-inline {            
+	font-size: 1em;
+}
+
+.ec-signup-use-styles .ec-signup-required {
+	color: currentColor;
+}
+
+.ec-signup-use-styles .ec-signup-fieldset {
+	padding: 0;
+	border: 0;
+}
+
+.ec-signup-use-styles .ec-signup-text-input,
+.ec-signup-use-styles .ec-signup-select {
+	padding: 0.5em;
+	font-size: 1em;
+	width: 100%;
+}
+
+
+.ec-signup-use-styles .ec-signup-button {
+	padding: 1em 2em;
+	cursor: pointer;
+}
+
+.ec-signup-use-styles .ec-signup-message-container {
+	border: 1px solid;
+	padding: 1em;
+}
