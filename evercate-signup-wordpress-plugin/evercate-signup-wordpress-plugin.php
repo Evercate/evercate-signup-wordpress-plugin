@@ -12,7 +12,11 @@ Text Domain: evercate-signup-wordpress-plugin
 Version: 1.0.0
 */
 
-register_activation_hook( 'install-db.php', 'install_db' );
+function install_db()
+{
+	require_once('InstallDb.php');	
+}
+register_activation_hook( __FILE__, 'install_db' );
 
 add_action( 'admin_menu', 'add_top_menu');
 require_once('Forms.php');
