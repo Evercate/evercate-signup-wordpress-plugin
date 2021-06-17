@@ -12,6 +12,7 @@ class Settings
 	private $groups = array();
 
 	private $apiError = NULL;
+	private $groupError = NULL;
 
     /**
      * Start up
@@ -46,18 +47,25 @@ class Settings
     {
         // Set class property
         $this->options = get_option( 'evercate-signup_options' );
-	
+
+
 		if(!empty($this->options['evercate_api_key']))
 		{			
 			$apiClient = new EvercateApiClient($this->options['evercate_api_key']);
 
 			try {
-				$response = $apiClient->GetUserGroups();
+				$userGroups = $apiClient->GetUserGroups();
 
-				foreach ($response as $group) {
+				$selectedGroupFound = false;
+				foreach ($userGroups as $group) {
 					$this->groups[$group->Id] = $group->Name;
+
+					if($group->Id === $this->options['evercate_group_id'])
+						$selectedGroupFound = true;
 				}
-				var_dump($this->groups);
+				
+				if(!empty($this->options['evercate_group_id']) && !$selectedGroupFound)
+					$this->groupError = "The group you had selected no longer exists";
 
 			} catch (Exception $e) {
 				$this->apiError = $e->getMessage();
@@ -95,7 +103,7 @@ class Settings
 
         add_settings_section(
             'integration_section', // ID
-            '', // Title
+            'Required settings', // Title
             NULL, // Callback
             'evercate-signup_setting_page' // Page
         );  
@@ -122,7 +130,38 @@ class Settings
             array( $this, 'evercate_group_id_callback' ), // Callback
             'evercate-signup_setting_page', // Page
             'integration_section' // Section           
+        );
+
+		add_settings_section(
+            'default_values', // ID
+            'Default values', // Title
+            NULL, // Callback
+            'evercate-signup_setting_page' // Page
         );  
+
+		add_settings_field(
+            'first_name_default_label', // ID
+            'First name default', // Title 
+            array( $this, 'first_name_default_label_callback' ), // Callback
+            'evercate-signup_setting_page', // Page
+            'default_values' // Section           
+        );  
+		
+		add_settings_field(
+            'last_name_default_label', // ID
+            'Last name default', // Title 
+            array( $this, 'last_name_default_label_callback' ), // Callback
+            'evercate-signup_setting_page', // Page
+            'default_values' // Section           
+        ); 
+
+		add_settings_field(
+            'username_default_label', // ID
+            'Email/Username default', // Title 
+            array( $this, 'username_default_label_callback' ), // Callback
+            'evercate-signup_setting_page', // Page
+            'default_values' // Section           
+        ); 
     }
 
     /**
@@ -142,6 +181,15 @@ class Settings
 		
 		if( isset( $input['evercate_group_id'] ) )
             $new_input['evercate_group_id'] = absint( $input['evercate_group_id'] );
+
+		if( isset( $input['first_name_default_label'] ) )
+            $new_input['first_name_default_label'] = sanitize_text_field( $input['first_name_default_label'] );
+
+		if( isset( $input['last_name_default_label'] ) )
+            $new_input['last_name_default_label'] = sanitize_text_field( $input['last_name_default_label'] );
+
+		if( isset( $input['username_default_label'] ) )
+            $new_input['username_default_label'] = sanitize_text_field( $input['username_default_label'] );
 
         return $new_input;
     }
@@ -201,7 +249,32 @@ class Settings
 			print($input);
 			
 		}
-        
+
+		if($this->groupError !== NULL)
+		{
+			print('<p style="color:red">'.$this->groupError.'</p>');
+		}   
+    }
+
+	public function first_name_default_label_callback()
+    {
+		$val = isset( $this->options['first_name_default_label'] ) ? esc_attr( $this->options['first_name_default_label']) : '';
+
+        printf('<input type="text" id="first_name_default_label" name="evercate-signup_options[first_name_default_label]" value="%s" />', $val);
+    }
+
+	public function last_name_default_label_callback()
+    {
+		$val = isset( $this->options['last_name_default_label'] ) ? esc_attr( $this->options['last_name_default_label']) : '';
+
+        printf('<input type="text" id="last_name_default_label" name="evercate-signup_options[last_name_default_label]" value="%s" />', $val);
+    }
+
+	public function username_default_label_callback()
+    {
+		$val = isset( $this->options['username_default_label'] ) ? esc_attr( $this->options['username_default_label']) : '';
+
+        printf('<input type="text" id="username_default_label" name="evercate-signup_options[username_default_label]" value="%s" />', $val);
     }
 }
 

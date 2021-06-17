@@ -1,5 +1,9 @@
 <?php
 
+require_once('Model/EvercateUserGroup.php');
+require_once('Model/EvercateTagType.php');
+require_once('Model/EvercateTag.php');
+
 class EvercateApiClient
 {
 	private string $authHeader;
@@ -26,8 +30,52 @@ class EvercateApiClient
 		} catch (Exception $e) {
 			throw new Exception("Exception while fetching user groups: " . $e->getMessage());
 		}
+
+		$userGroups = array();
+
+		foreach ($response as $responseGroup) 
+		{
+			
+			$userGroup = new EvercateUserGroup();
+			$userGroup->Id = $responseGroup->Id;
+			$userGroup->Name = $responseGroup->Name;
+
+			$userGroups[] =  $userGroup;
+
+			foreach ($responseGroup->Tags as $responseTag) 
+			{
+				$tagType = NULL;
+
+				//Due to response sent as only tags we need to see if we have the tag type since before
+				foreach($userGroup->EvercateTagTypes as $existingTagType) {
+					if ($existingTagType->Id === $responseTag->TagTypeId) {
+						$tagType = $existingTagType;
+						break;
+					}
+				}
+
+				if($tagType === NULL)
+				{
+					$tagType = new EvercateTagType();
+					$tagType->Id = $responseTag->TagTypeId;
+					$tagType->Name = $responseTag->TagType;
+					$userGroup->EvercateTagTypes[] =  $tagType;
+				}
 	
-		return $response;
+				$tag = new EvercateTag();
+				$tag->Id = $responseTag->Id;
+				$tag->Name = $responseTag->Name;
+
+				$tagType->EvercateTags[] = $tag;
+				$userGroup->AllEvercateTags[] =  $tag;
+
+			}
+
+			
+		}
+
+	
+		return $userGroups;
 	}
 
 	private function apiCall($callUri, $payload = NULL)

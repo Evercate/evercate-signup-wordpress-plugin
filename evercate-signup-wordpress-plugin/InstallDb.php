@@ -20,11 +20,48 @@ function install_initial_db() {
 		name VARCHAR(90) NOT NULL,
 		created DATETIME NOT NULL DEFAULT (UTC_TIMESTAMP),
 		PRIMARY KEY  (id),
-		INDEX NAME (name ASC) VISIBLE,
-		INDEX CREATED (created ASC) VISIBLE
+		KEY NAME (name ASC),
+		KEY CREATED (created ASC)
 	)".$charset_collate.";";
 
+	$queries[] = "CREATE TABLE " . $wpdb->prefix . "evercate_signup_form_tag (
+		form_id INT(11) UNSIGNED NOT NULL,
+		tag_id INT(11) UNSIGNED NOT NULL,
+		PRIMARY KEY  (form_id, tag_id),
+		CONSTRAINT fk_tag_form
+    		FOREIGN KEY (form_id) REFERENCES " . $wpdb->prefix . "evercate_signup_form (id)
+    		ON DELETE CASCADE
+    		ON UPDATE RESTRICT
+	)".$charset_collate.";";
 
+	$queries[] = "CREATE TABLE " . $wpdb->prefix . "evercate_signup_form_field (
+		form_id INT(11) UNSIGNED NOT NULL,
+		type CHAR(10) NOT NULL,
+		tag_type_id INT(11) UNSIGNED,
+		sort_index SMALLINT(5) UNSIGNED NOT NULL DEFAULT 0,
+		label VARCHAR(100) NOT NULL,
+		PRIMARY KEY  (form_id, type, tag_type_id),
+		CONSTRAINT fk_field_form
+			FOREIGN KEY (form_id) REFERENCES " . $wpdb->prefix . "evercate_signup_form (id)
+			ON DELETE CASCADE
+			ON UPDATE RESTRICT
+	)".$charset_collate.";";
+
+	$queries[] = "CREATE TABLE " . $wpdb->prefix . "evercate_signup_signup (
+		id INT(11) UNSIGNED NOT NULL AUTO_INCREMENT,
+		form_id INT(11) UNSIGNED NOT NULL,
+		time DATETIME NOT NULL DEFAULT (UTC_TIMESTAMP),
+		payload TEXT,
+		status SMALLINT(5) UNSIGNED NOT NULL DEFAULT 0,
+		response TEXT,
+		user_existed BOOL,
+		actioned BOOL,
+		PRIMARY KEY  (id),
+		CONSTRAINT `fk_signup_form`
+			FOREIGN KEY (form_id) REFERENCES " . $wpdb->prefix . "evercate_signup_form (id)
+			ON DELETE CASCADE
+			ON UPDATE RESTRICT
+	)".$charset_collate.";";
 	$result = dbDelta($queries);
 
 	//Note, this is just so that we in the future can write update code if we need to update database
