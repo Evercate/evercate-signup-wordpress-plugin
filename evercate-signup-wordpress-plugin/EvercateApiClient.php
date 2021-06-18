@@ -16,6 +16,21 @@ class EvercateApiClient
 		$this->authHeader = "Authorization: Bearer " . $apikey;
     }
 
+	public function GetUserGroup($id)
+	{
+		$allGroups = $this->GetUserGroups();
+
+		foreach($allGroups as $loopGroup)
+		{
+			if($loopGroup->Id === $id)
+			{
+				return $loopGroup;
+			}
+		}
+
+		return NULL;
+	}
+
 	public function GetUserGroups()
 	{
 		try {

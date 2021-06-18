@@ -5,7 +5,7 @@ class FormModel
     public function __construct()
     {
         $this->TagIds = array();
-		$this->TagTypeIds = array();
+		$this->TagTypes = array();
     }
 
 	public $Id;
@@ -14,11 +14,13 @@ class FormModel
 
 	public $TagIds;
 
-	public $TagTypeIds;
+	public $TagTypes;
 
 	public $FirstNameLabel;
 
 	public $LastNameLabel;
 
 	public $UsernameLabel;
+
+	public $Created;
 }

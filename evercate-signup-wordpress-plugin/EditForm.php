@@ -21,6 +21,8 @@ class EditForm
 		add_action( 'admin_post_edit_form', array($this, 'process_edit_form') );
 		add_action( 'admin_enqueue_scripts', array($this, 'editForm_enqueue_scripts'), 2000 );
 		
+		//Future extension warning for assigned tags/tag types that no longer exist in evercate
+		//add_action( 'admin_notices', array($this, 'missing_tags_warning') );
 
 		$options = get_option("evercate-signup_options");
 
@@ -67,39 +69,60 @@ class EditForm
         );
     }
 
-
+	// public function missing_tags_warning() {
+	// 	?->
+	// 	<div class="notice notice-error is-dismissible">
+	// 		<p><-?php _e( 'This form was linked to either tags or tag types that no longer exists. Save to remove those tag and tag types', 'evercate-signup-wordpress-plugin' ); ?-></p>
+	// 	</div>
+	// 	<-?php
+	// }
+	
 	
 	public function process_edit_form() {
 
 		$model = new FormModel();
-		$model->Id = isset($_REQUEST['form_id']) ? $_REQUEST['form_id'] : 0;
-		$model->Name = $_REQUEST['name'];
-		$model->FirstNameLabel = $_REQUEST['first_name_label'];
-		$model->LastNameLabel = $_REQUEST['last_name_label'];
-		$model->UsernameLabel = $_REQUEST['username_label'];
+		$model->Id = $this->getIfSet($_REQUEST['form_id'], 0);
+		$model->Name = $this->getIfSet($_REQUEST['name']);
+		$model->FirstNameLabel = $this->getIfSet($_REQUEST['first_name_label']);
+		$model->LastNameLabel = $this->getIfSet($_REQUEST['last_name_label']);
+		$model->UsernameLabel = $this->getIfSet($_REQUEST['username_label']);
+		$model->TagIds = $this->getIfSet($_REQUEST['tags'], array());
 
-		$model = $this->repository->createForm($model);
+		$tagTypeArray = array();
+		
+		if(isset($_REQUEST['tagtypes']) && is_array($_REQUEST['tagtypes']))
+		{
+			$userGroup = $this->apiClient->GetUserGroup($this->userGroupId);
 
-		//oi
-		status_header(200);
+			if($userGroup === NULL)
+			{
+				wp_die("Usergroup configured to use was not found in usergroups sent out by API");
+			}
 
-		//request handlers should exit() when they complete their task
-		exit("Server received '{$_REQUEST['form_id']}' from your browser. Also name '{$_REQUEST['name']}'");
+			$tagTypeIds = $_REQUEST['tagtypes'];
+			foreach($tagTypeIds as $tagTypeId)
+			{
+				foreach($userGroup->EvercateTagTypes as $tagType)
+				{
+					if($tagType->Id == $tagTypeId)	
+					{
+						$tagTypeArray[$tagType->Id] = $tagType->Name;
+					}
+				}				
+			}
+		}
+		
+		$model->TagTypes = $tagTypeArray;
+
+		$model = $this->repository->saveForm($model);
+
+		wp_redirect( esc_url( wp_nonce_url( add_query_arg( array('page' => 'evercate-signup'), 'admin.php' ), 'evercate-signup-forms' ) ) );
+		exit;
 	}
 
     public function edit_form_page()
     {
-		$userGroups = $this->apiClient->GetUserGroups();
-
-		$userGroup = NULL;
-		foreach($userGroups as $loopGroup)
-		{
-			if($loopGroup->Id === $this->userGroupId)
-			{
-				$userGroup = $loopGroup;
-				break;
-			}
-		}
+		$userGroup = $this->apiClient->GetUserGroup($this->userGroupId);
 
 		if($userGroup === NULL)
 		{
@@ -112,6 +135,10 @@ class EditForm
 		if($formId > 0)
 		{
 			$model = $this->repository->getForm($formId);
+			$this->firstnameLabel = $model->FirstNameLabel;
+			$this->lastnameLabel = $model->LastNameLabel;
+			$this->usernameLabel = $model->UsernameLabel;
+
 		}
 
 		?>
@@ -168,7 +195,8 @@ class EditForm
 										echo("<optgroup label='".$tagType->Name."'>");
 											foreach($tagType->EvercateTags as $tag)
 											{
-												echo("<option value='".$tag->Id."'>".$tag->Name."</option>");
+												$selected = in_array($tag->Id, $model->TagIds) ? "selected" : "";
+												echo("<option value='".$tag->Id."' ".$selected.">".$tag->Name."</option>");
 											}
 										echo("</optgroup>");
 									}
@@ -185,7 +213,9 @@ class EditForm
 								<?php
 									foreach($userGroup->EvercateTagTypes as $tagType)
 									{
-										echo("<option value='".$tagType->Id."'>".$tagType->Name."</option>");
+										$selectedTag = $model->TagTypes[$tagType->Id];
+										$selected = isset($selectedTag) ? "selected" : "";
+										echo("<option value='".$tagType->Id."' ".$selected.">".$tagType->Name."</option>");
 									}
 								?>
 								</select>
@@ -217,6 +247,11 @@ class EditForm
 			'1.0.0'                                   // Version
 		);
 	
+	}
+
+	private function getIfSet(&$value, $default = null)
+	{
+		return isset($value) ? $value : $default;
 	}
 	
 

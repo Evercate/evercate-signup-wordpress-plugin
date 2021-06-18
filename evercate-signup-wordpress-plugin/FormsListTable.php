@@ -6,40 +6,12 @@ if( ! class_exists( 'WP_List_Table' ) ) {
 }
 
 require_once('EditForm.php');
+require_once('Repository.php');
 
 class FormsListTable extends WP_List_Table {
 
-	/**
-	 * ***********************************************************************
-	 * Normally we would be querying data from a database and manipulating that
-	 * for use in your list table. For this example, we're going to simplify it
-	 * slightly and create a pre-built array. Think of this as the data that might
-	 * be returned by $wpdb->query()
-	 *
-	 * In a real-world scenario, you would run your own custom query inside
-	 * the prepare_items() method in this class.
-	 *
-	 * @var array
-	 * ************************************************************************
-	 */
-	protected $example_data = array(
-		array(
-			'id'       => 1,
-			'name'    => 'a300',
-			'shortcode' => '[wow id="10"]',
-			'assigned-tags'   => 'Malmö, It',
-			'selectable-tag-types' => 'Nöjdhet',
-			'created' => '2020-12-08',
-		),
-		array(
-			'id'       => 2,
-			'name'    => 'Eyes Wide Shut',
-			'shortcode' => '[wow id="5"]',
-			'assigned-tags'   => 'Stockholm, Hr, Kalle, Olle, Whatever',
-			'selectable-tag-types' => '',
-			'created' => '2020-01-08',
-		),
-	);
+	private $repository = NULL;
+	private $userGroup = NULL;
 
 	/**
 	 * REQUIRED. Set up a constructor that references the parent constructor. We
@@ -52,6 +24,16 @@ class FormsListTable extends WP_List_Table {
 			'plural'   => 'forms',    // Plural name of the listed records.
 			'ajax'     => false,       // Does this table support ajax?
 		) );
+
+		$options = get_option("evercate-signup_options");
+
+		$apiKey = $options["evercate_api_key"];
+		$userGroupId = $options["evercate_group_id"];
+
+		$this->repository = new Repository();
+		$apiClient = new EvercateApiClient($apiKey);
+
+		$this->userGroup = $apiClient->GetUserGroup($userGroupId);
 	}
 
 	/**
@@ -263,16 +245,8 @@ class FormsListTable extends WP_List_Table {
 			if (!is_array($ids)) 
 				$ids = array($ids);
 
-			$this->example_data = array(
-				array(
-					'id'       => 1,
-					'name'    => 'a300',
-					'shortcode' => '[wow id="10"]',
-					'assigned-tags'   => 'Malmö, It',
-					'selectable-tag-types' => 'Nöjdhet',
-					'created' => '2020-12-08',
-				),
-			);
+			foreach($ids as $id)
+				$this->repository->deleteForm($id);
 		}
 	}
 
@@ -326,24 +300,40 @@ class FormsListTable extends WP_List_Table {
 		 */
 		$this->process_action();
 
-		/*
-		 * GET THE DATA!
-		 * 
-		 * Instead of querying a database, we're going to fetch the example data
-		 * property we created for use in this plugin. This makes this example
-		 * package slightly different than one you might build on your own. In
-		 * this example, we'll be using array manipulation to sort and paginate
-		 * our dummy data.
-		 * 
-		 * In a real-world situation, this is probably where you would want to 
-		 * make your actual database query. Likewise, you will probably want to
-		 * use any posted sort or pagination data to build a custom query instead, 
-		 * as you'll then be able to use the returned query data immediately.
-		 *
-		 * For information on making queries in WordPress, see this Codex entry:
-		 * http://codex.wordpress.org/Class_Reference/wpdb
-		 */
-		$data = $this->example_data;
+
+		$forms = $this->repository->getFormsList();
+
+		$tableData = array();
+
+		foreach($forms as $form)
+		{
+			$tags = array();
+			foreach($form->TagIds as $tagId)
+			{
+				foreach($this->userGroup->AllEvercateTags as $evercateTag)
+				{
+					if($evercateTag->Id == $tagId)
+					{
+						$tags[$tagId] = $evercateTag->Name;
+						break;
+					}
+				}
+				
+			}
+
+
+			$tableData[] = array(
+				'id'       => $form->Id,
+				'name'    => $form->Name,
+				'shortcode' => '[evercate-signup id="'.$form->Id.'"]',
+				'assigned-tags'   => implode(", ", $tags),
+				'selectable-tag-types' => implode(", ", $form->TagTypes),
+				'created' => $form->Created,
+			);
+		}
+		
+
+		$data = $tableData;
 
 		/*
 		 * This checks for sorting input and sorts the data in our array of dummy
