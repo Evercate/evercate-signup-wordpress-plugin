@@ -11,8 +11,9 @@ class EvercateApiClient
 
 	public function __construct(?string $apikey)
     {
-		if(empty($apikey))
+		if(empty($apikey)) {
 			//throw new Exception('No api key set');
+        }
 
 		$this->authHeader = "Authorization: Bearer " . $apikey;
     }
