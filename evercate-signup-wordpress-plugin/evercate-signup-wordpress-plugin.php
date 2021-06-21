@@ -12,6 +12,11 @@ Text Domain: evercate-signup-wordpress-plugin
 Version: 1.0.0
 */
 
+
+require_once('Repository.php');	
+require_once('EvercateApiClient.php');	
+require_once('Model/EvercateUser.php');	
+
 function install_db()
 {
 	require_once('InstallDb.php');	
@@ -24,6 +29,20 @@ add_action('wp_enqueue_scripts', 'callback_for_setting_up_scripts');
 function callback_for_setting_up_scripts() {
     wp_register_style( 'evercate.signup', plugin_dir_url( __FILE__ ) . 'evercate-signup.css' );
     wp_enqueue_style( 'evercate.signup' );
+
+	wp_enqueue_script( 
+		'form-js',                            // Handle
+		plugins_url( '/Form.js', __FILE__ ),  // Path to file
+		array( 'jquery' ),                        // Dependancies
+		'1.0.0'                                   // Version
+	);
+
+	wp_add_inline_script( 'form-js', 
+	'const constants = ' . json_encode( 
+								array(
+									'ajaxUrl' => admin_url( 'admin-ajax.php' ),
+									) ),
+	'before' );
 }
 
 function add_top_menu()
@@ -44,97 +63,295 @@ add_action( 'admin_menu', 'add_top_menu');
 
 //must come after admin_menu action bind
 require_once('Forms.php');
+require_once('Signups.php');
 require_once('Settings.php');
-
 
 function evercate_signup_shortcode($attributes) {
 
+	$options = get_option("evercate-signup_options");
 
-$myreturnString=<<<HTML
-<form class="ec-signup-form ec-signup-use-styles">
-        <div class="ec-signup-form-element">
-            <label for="ec-signup-input-1" class="ec-signup-label">
-                First Name <span class="ec-signup-required">*</span>
-            </label>
-            <input type="text" id="ec-signup-input-1" name="First Name" class="ec-signup-text-input" required />
-        </div>
-        <div class="ec-signup-form-element">
-            <label for="ec-signup-input-2" class="ec-signup-label">
-                Last Name <span class="ec-signup-required">*</span>
-            </label>
-            <input type="text" id="ec-signup-input-2" name="Last Name" class="ec-signup-text-input" required />
-        </div>
-        <div class="ec-signup-form-element">
-            <label for="ec-signup-input-3" class="ec-signup-label">
-                Email address <span class="ec-signup-required">*</span>
-            </label>
-            <input type="email" id="ec-signup-input-3" name="Email address" class="ec-signup-text-input" required />
-        </div>
-        <div class="ec-signup-form-element">
-            <label for="ec-signup-input-4" class="ec-signup-label">
-                Number
-            </label>
-            <input type="number" id="ec-signup-input-4" name="Number" class="ec-signup-text-input" />
-        </div>
-        <div class="ec-signup-form-element">
-            <fieldset class="ec-signup-fieldset">
-                <legend class="ec-signup-legend">Radio buttons</legend>
-                <div>
-                    <input type="radio" name="Radio buttons - option" id="ec-signup-radio-1-option-1" value="Radio option 1"
-                        checked>
-                    <label for="ec-signup-radio-1-option-1" class="ec-signup-label-inline">Radio option 1</label>
-                </div>
-                <div>
-                    <input type="radio" name="Radio buttons - option" id="ec-signup-radio-1-option-2" value="Radio option 2">
-                    <label for="ec-signup-radio-1-option-2" class="ec-signup-label-inline">Radio option 2</label>
-                </div>
-            </fieldset>
-        </div>
-        <div class="ec-signup-form-element">
-            <fieldset class="ec-signup-fieldset">
-                <legend class="ec-signup-legend">Checkboxes</legend>
-                <div>
-                    <input type="checkbox" name="Checkboxes - option" id="ec-signup-checkbox-1-option-1" value="Option 1"
-                        checked>
-                    <label for="ec-signup-checkbox-1-option-1" class="ec-signup-label-inline">Option 1</label>
-                </div>
-                <div>
-                    <input type="checkbox" name="Checkboxes - option" id="ec-signup-checkbox-1-option-2" value="Option 2">
-                    <label for="ec-signup-checkbox-1-option-2" class="ec-signup-label-inline">Option 2</label>
-                </div>
-                <div>
-                    <input type="checkbox" name="Checkboxes - option" id="ec-signup-checkbox-1-option-3" value="Option 3">
-                    <label for="ec-signup-checkbox-1-option-3" class="ec-signup-label-inline">Option 3</label>
-                </div>
-            </fieldset>
-        </div>
-        <div class="ec-signup-form-element">
-            
-                <label for="ec-signup-input-5" class="ec-signup-label">Select</label>
-                <select id="ec-signup-input-5" class="ec-signup-select">
+	if(!isset($attributes["id"]) || !is_numeric($attributes["id"]))
+	{
+		wp_die("Invalid id")		;
+	}
 
-                    <option value="Select option 1">Select option 1</option>
-                    <option value="Select option 2">Select option 2</option>
-                    <option value="Select option 3">Select option 3</option>
+	$formId = $attributes["id"];
 
-                </select>
-            
-        </div>
-        <div class="ec-signup-form-element">
-            <button type="submit" class="ec-signup-button">Skicka</button>
-        </div>
-    </form>
-
-
-    <div class="ec-signup-message-container">
-        <h3>Message heading</h3>
-        <p>Lorem ipsum dolor sit amet, consectetur adipiscing elit. Vivamus congue luctus libero consequat facilisis. </p>
-    </div>
-HTML;
 	
-	return $myreturnString;
+	$repository = new Repository();
+
+	$form = $repository->getForm($formId);
+
+	if($form === NULL)
+	{
+		$message = "Form does not exist, id: ".$formId;
+		send_error_mail($message);
+		return "<div></div>";
+	}
+
+	$apiKey = $options["evercate_api_key"];
+	$apiClient = new EvercateApiClient($apiKey);
+
+$returnString=<<<HTMLBASE
+<form class="ec-signup-form ec-signup-use-styles" id="evercate-signup-$form->Id" data-form-id="$form->Id" >
+		<input type="hidden" name="formId" value="$form->Id" />
+		<input type="hidden" name="action" value="evercate-signup-submit" />
+        <div class="ec-signup-form-element">
+            <label for="evercate-signup-firstname" class="ec-signup-label">
+                 $form->FirstNameLabel <span class="ec-signup-required">*</span>
+            </label>
+            <input type="text" id="evercate-signup-firstname" name="First Name" class="ec-signup-text-input" required />
+        </div>
+        <div class="ec-signup-form-element">
+            <label for="evercate-signup-lastname" class="ec-signup-label">
+			$form->LastNameLabel <span class="ec-signup-required">*</span>
+            </label>
+            <input type="text" id="evercate-signup-lastname" name="Last Name" class="ec-signup-text-input" required />
+        </div>
+        <div class="ec-signup-form-element">
+            <label for="evercate-signup-username" class="ec-signup-label">
+			$form->UsernameLabel <span class="ec-signup-required">*</span>
+            </label>
+            <input type="email" id="evercate-signup-username" name="Email address" class="ec-signup-text-input" required />
+        </div>
+HTMLBASE;
+
+	if(isset($form->TagTypes) && is_array($form->TagTypes))
+	{
+		$userGroup = $apiClient->GetUserGroup($options["evercate_group_id"]);
+
+		foreach($form->TagTypes as $tagTypeId => $tagTypeLabel)
+		{
+			$fullTagType = NULL;
+			foreach($userGroup->EvercateTagTypes as $evercateTagType)
+			{
+				if($evercateTagType->Id === $tagTypeId)
+				{
+					$fullTagType = $evercateTagType;
+					break;
+				}
+			}
+
+			//The tag type we have saved on this form was not found in the data from the api
+			if($fullTagType === NULL)
+			{
+				$message = "A form had the selecteable tag type ".$tagTypeLabel." (".$tagTypeId."), however no tagtype with this id was found in Evercate.";
+				send_error_mail($message);
+				//We simply skip this tag type
+				continue;
+			}
+
+			$returnString .= '<div class="ec-signup-form-element">';
+			$returnString .= '<label for="ec-signup-input-'.$tagTypeId.'" class="ec-signup-label">'.$tagTypeLabel.'</label>';
+			$returnString .= '<select id="ec-signup-input-'.$tagTypeId.'" name="tagType-'.$tagTypeId.'" class="ec-signup-select">';
+
+			//Consider having empty option here but then language will be an issue on the text of the empty option
+
+			foreach($fullTagType->EvercateTags as $tag)
+			{
+				$returnString .= '<option value="'.$tag->Id.'">'.$tag->Name.'</option>';
+			}
+			$returnString .= '</select>';
+			$returnString .= '</div>';
+		
+	
+		}
+		
+
+	}
+	
+	$returnString .= '<div class="ec-signup-form-element">';
+	$returnString .= '<button type="submit" class="ec-signup-button" id="submit-button-'.$form->Id.'">'.$options["send_button_label"].'</button>';
+	$returnString .= '</div>';
+	$returnString .= '</form>';
+
+    $returnString .= '<div class="ec-signup-message-container" id="evercate-signup-done-'.$form->Id.'" style="display:none">';
+	$returnString .= '<h3>'.$options["success_title"].'</h3>';
+	$returnString .= '<p>'.$options["success_message"].'</p>';
+    $returnString .= '</div>';
+
+	$returnString .= '<div class="ec-signup-message-container" id="evercate-signup-error-'.$form->Id.'" style="display:none">';
+	$returnString .= '<h3>'.$options["error_title"].'</h3>';
+	$returnString .= '<p>'.$options["error_message"].'</p>';
+    $returnString .= '</div>';
+	
+	return $returnString;
 }
 
 add_shortcode( 'evercate-signup', 'evercate_signup_shortcode' );
 
 
+
+
+
+
+
+function signup_submit_handle()
+{
+	$formId = $_POST["formId"];
+
+	$repository = new Repository();
+
+	$form = $repository->getForm($formId);
+
+	$options = get_option("evercate-signup_options");
+	$selectedGroupId = $options["evercate_group_id"];
+
+	$apiKey = $options["evercate_api_key"];
+	$apiClient = new EvercateApiClient($apiKey);
+	$userGroup = $apiClient->GetUserGroup($selectedGroupId);
+
+	$firstName = NULL;
+	$lastName = NULL;
+	$userName = NULL;
+	$selectedTags = array();
+	$automaticTags = $form->TagIds;
+
+	foreach($_POST as $name => $value)
+	{
+		switch($name)
+		{
+			case "First_Name" : 
+				$firstName = $value;
+				break;
+			case "Last_Name" : 
+				$lastName = $value;
+				break;
+			case "Email_address" : 
+				$userName = $value;
+				break;
+		}
+		
+		$tagTypePrefix = 'tagType-';
+
+		if(substr($name, 0, strlen($tagTypePrefix)) === $tagTypePrefix)
+		{
+			$tagTypeId = substr($name, strlen($tagTypePrefix));
+
+			$fullTagType = NULL;
+			foreach($userGroup->EvercateTagTypes as $evercateTagType)
+			{
+				if($evercateTagType->Id == $tagTypeId)
+				{
+					$fullTagType = $evercateTagType;
+					break;
+				}
+			}
+			
+			if($fullTagType === NULL)
+			{
+				$message = "A form had a selecteable tag type with id: ".$tagTypeId.", however no tagtype with this id was found in Evercate.";
+				send_error_mail($message);
+				//We simply skip this tag type
+				continue;
+			}
+			
+			$fullTag = NULL;
+			foreach($fullTagType->EvercateTags as $evercateTag)
+			{
+				if($evercateTag->Id == $value)
+				{
+					$fullTag = $evercateTagType;
+					break;
+				}
+			}
+
+			if($fullTag == NULL)
+			{
+				$message = "A form had  a selecteable tag type with id: ".$tagTypeId." with a tag with id: ".$value." however no tag with this id was found in Evercate.";
+				send_error_mail($message);
+				//We simply skip this tag type
+				continue;
+			}
+			
+		 	$selectedTags[] = $value;
+		}
+	}
+
+	if($firstName === NULL || $lastName === NULL || $userName === NULL)
+	{
+		wp_send_json_error(array( 'Message' => "Not all fields were filled in" ), 500 );	
+	}
+
+	
+
+	$existingUserId = 0;
+	$existingUserTags = array();
+
+	try {
+		
+		$user = $apiClient->GetUser($userName);
+		
+		if($user !== NULL)
+		{
+			if($user->GroupId != $selectedGroupId)
+			{
+				$message = "A person tried to sign up using email/username ".$userName." which was found in Evercate but on a different group than selected. The selected user group is ".$selectedGroupId." and the user was found on ".$user->GroupId.".";
+				send_error_mail($message);
+				wp_send_json_error(array( 'Message' => "User existed on another group" ), 500 );	
+			}
+			else
+			{
+				$existingUserId = $user->Id;
+				$existingUserTags = $user->UserTags;
+			}
+		}
+
+	} catch (Exception $e) {
+		$message = "When checking if user with username ".$userName." existed we ran into an error from Evercate. The error: ".$e->getMessage();
+		send_error_mail($message);
+		wp_send_json_error(array( 'Message' => "Could not check if user already existed" ), 400 );	
+	}
+
+	$allTags = array_merge($existingUserTags, $selectedTags, $automaticTags);
+	//You can only be assined a tag once
+	$uniqueTags = array_values(array_map('intval', array_unique($allTags)));
+
+	$model = new EvercateUser();
+	$model->Id = $existingUserId;
+	$model->Username = $existingUserId == 0 ? $userName : NULL;
+	$model->ExistingUsername = $existingUserId > 0 ? $userName : NULL;
+	$model->FirstName = $firstName;
+	$model->LastName = $lastName;
+	$model->GroupId = $selectedGroupId;
+	$model->UserTags = $uniqueTags;
+
+	$payload = json_encode($model);
+
+
+	try {
+			
+		$savedUser = $apiClient->saveUser($model);
+
+		$repository->saveSignup($formId, $payload, $existingUserId > 0, 200, NULL);
+		
+	} catch (Exception $e) {
+
+		$message = $e->getMessage();
+
+		$repository->saveSignup($formId, $payload, $existingUserId > 0, 500, $message);
+
+		$message = "When saving a user from a signup we encountered an error. Error message: ".$e->getMessage() . " - User data: $model";
+		send_error_mail($message);
+		wp_send_json_error(array( 'Message' => "Failed to save user" ), 400 );		
+	}
+
+	
+	
+	
+	wp_send_json_success( NULL, 200 );
+}
+
+add_action( 'wp_ajax_evercate-signup-submit', 'signup_submit_handle' );
+add_action( 'wp_ajax_nopriv_vercate-signup-submit', 'signup_submit_handle' );
+
+function send_error_mail($message)
+{
+	$options = get_option("evercate-signup_options");
+	$notificationEmail = $options["notification_email"];
+
+	global $wp;
+	$current_url = add_query_arg( $_SERVER['QUERY_STRING'], '', home_url( $wp->request ) );
+	$message .= " - Failure happened on: ". $current_url;
+	wp_mail($notificationEmail, "[Error] Evercate signup wordpress plugin", $message);	
+}

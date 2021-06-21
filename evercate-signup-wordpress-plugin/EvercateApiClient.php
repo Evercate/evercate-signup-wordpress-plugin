@@ -3,6 +3,7 @@
 require_once('Model/EvercateUserGroup.php');
 require_once('Model/EvercateTagType.php');
 require_once('Model/EvercateTag.php');
+require_once('Model/EvercateUser.php');	
 
 class EvercateApiClient
 {
@@ -93,12 +94,64 @@ class EvercateApiClient
 		return $userGroups;
 	}
 
-	private function apiCall($callUri, $payload = NULL)
+	public function GetUser($email)
+	{
+		
+		try {
+
+			return $this->apiCall("users/".urlencode($email));
+
+		} catch (Exception $e) {
+
+			$message = $e->getMessage();
+
+			//It's allowed to not find the user
+			if($message == "404")
+				return NULL;
+
+			throw new Exception("Exception while fetching user: " . $message);
+		}
+	}
+
+	public function saveUser($userModel)
+	{
+		$payload = json_encode($userModel);
+		
+		$saveUrl = "users/".($userModel->Id > 0 ? $userModel->Id : "");
+		$method = $userModel->Id > 0 ? "put" : "post";
+
+		try {
+			
+			return $this->apiCall($saveUrl, $method, $payload);
+			
+		} catch (Exception $e) {
+
+			$message = $e->getMessage();
+			throw new Exception("Exception while saving user: " . $message . " - user data: ".$payload);
+		}
+	}
+
+	private function apiCall($callUri, $method = "get", $payload = NULL)
 	{
 		$ch = curl_init('https://api-v1.evercate.com/'.$callUri); // Initialise cURL
+		
 		curl_setopt($ch, CURLOPT_HTTPHEADER, array('Content-Type: application/json' , $this->authHeader )); // Inject the token into the header
 		curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-		curl_setopt($ch, CURLOPT_HTTPGET, 1); // Specify the request method as POST
+		
+		switch(strtolower($method))
+		{
+			case "get" :
+				curl_setopt($ch, CURLOPT_HTTPGET, 1); // Specify the request method as POST
+				break;
+			case "post" :
+				curl_setopt($ch, CURLOPT_POST, 1); // Specify the request method as POST
+				curl_setopt($ch, CURLOPT_POSTFIELDS, $payload);
+				break;
+			case "put" :
+				curl_setopt($ch, CURLOPT_CUSTOMREQUEST, "PUT"); // Specify the request method as POST
+				curl_setopt($ch, CURLOPT_POSTFIELDS, $payload);
+				break;
+		}
 		curl_setopt($ch, CURLOPT_FOLLOWLOCATION, 1); // This will follow any redirects
 		$result = curl_exec($ch); // Execute the cURL statement		
 
@@ -110,8 +163,10 @@ class EvercateApiClient
 		if($curlErrNo)
 			throw new Exception("Curl error " . $curlErrNo . ": " . $curlError);
 
-		if($httpCode >= 400)
-			throw new Exception("Call failed with status code: " . $httpCode);
+		if($httpCode == 404)
+			throw new Exception("404");
+		else if($httpCode >= 400)
+			throw new Exception("Call failed with status code: " . $httpCode . ", with message: ".$result);
 		
 		return json_decode($result); // Return the received data
 	}

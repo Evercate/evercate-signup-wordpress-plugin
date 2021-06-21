@@ -43,7 +43,7 @@ class EditForm
 			
 
 		$apiKey = $options["evercate_api_key"];
-		$this->userGroupId = $options["evercate_group_id"];
+		$this->userGroupId = $options["evercate_group_id"] ?? 0;
 
 		$this->repository = new Repository();
 		$this->apiClient = new EvercateApiClient($apiKey);

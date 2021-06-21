@@ -36,6 +36,9 @@ class Repository
 				"SELECT id, name, created FROM {$wpdb->prefix}evercate_signup_form WHERE id=%d", $id) 
 		 );
 
+		 if(empty($form))
+		 	return NULL;
+
 		 return $this->getFormListModel($form[0]);
 
 	}
@@ -273,5 +276,42 @@ class Repository
 		 }
 
 		return $model;
+	}
+
+	public function saveSignup($formId, $payload, $userExisted, $status, $response)
+    {
+		global $wpdb;
+
+		//base form
+		$success = $wpdb->insert( 
+			$wpdb->prefix.'evercate_signup_signup', 
+			array( 
+				'form_id' => $formId, 
+				'payload' => $payload, 
+				'user_existed' => $userExisted, 
+				'status' => $status, 
+				'response' => $response, 
+			), 
+			array( 
+				'%d',
+				'%s',
+				'%d',
+				'%d',
+				'%s'
+			) 
+		);
+
+
+	}
+
+	public function getSignupsList()
+    {
+		global $wpdb;
+		$formList = array();
+
+		return $wpdb->get_results( 
+			"SELECT form_id, time, payload, status, response, user_existed FROM {$wpdb->prefix}evercate_signup_signup"
+		 );
+
 	}
 }

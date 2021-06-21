@@ -162,6 +162,48 @@ class Settings
             'evercate-signup_setting_page', // Page
             'default_values' // Section           
         ); 
+
+		add_settings_field(
+            'success_title', // ID
+            'Success message title', // Title 
+            array( $this, 'success_title_callback' ), // Callback
+            'evercate-signup_setting_page', // Page
+            'default_values' // Section           
+        ); 
+
+		add_settings_field(
+            'success_message', // ID
+            'Success message', // Title 
+            array( $this, 'success_message_callback' ), // Callback
+            'evercate-signup_setting_page', // Page
+            'default_values' // Section           
+        ); 
+
+		add_settings_field(
+            'error_title', // ID
+            'Error message title', // Title 
+            array( $this, 'error_title_callback' ), // Callback
+            'evercate-signup_setting_page', // Page
+            'default_values' // Section           
+        ); 
+
+		add_settings_field(
+            'error_message', // ID
+            'Error message', // Title 
+            array( $this, 'error_message_callback' ), // Callback
+            'evercate-signup_setting_page', // Page
+            'default_values' // Section           
+        ); 
+
+		add_settings_field(
+            'send_button_label', // ID
+            'Send button label', // Title 
+            array( $this, 'send_button_label_callback' ), // Callback
+            'evercate-signup_setting_page', // Page
+            'default_values' // Section           
+        ); 
+
+
     }
 
     /**
@@ -190,6 +232,20 @@ class Settings
 
 		if( isset( $input['username_default_label'] ) )
             $new_input['username_default_label'] = sanitize_text_field( $input['username_default_label'] );
+
+		if( isset( $input['success_title'] ) )
+            $new_input['success_title'] = sanitize_text_field( $input['success_title'] );
+		if( isset( $input['success_message'] ) )
+            $new_input['success_message'] = sanitize_text_field( $input['success_message'] );
+
+		if( isset( $input['error_title'] ) )
+            $new_input['error_title'] = sanitize_text_field( $input['error_title'] );			
+		if( isset( $input['error_message'] ) )
+            $new_input['error_message'] = sanitize_text_field( $input['error_message'] );
+
+
+		if( isset( $input['send_button_label'] ) )
+            $new_input['send_button_label'] = sanitize_text_field( $input['send_button_label'] );			
 
         return $new_input;
     }
@@ -275,6 +331,41 @@ class Settings
 		$val = isset( $this->options['username_default_label'] ) ? esc_attr( $this->options['username_default_label']) : '';
 
         printf('<input type="text" id="username_default_label" name="evercate-signup_options[username_default_label]" value="%s" />', $val);
+    }
+
+	public function success_title_callback()
+    {
+		$val = isset( $this->options['success_title'] ) ? esc_attr( $this->options['success_title']) : '';
+
+        printf('<input type="text" id="success_title" name="evercate-signup_options[success_title]" value="%s" />', $val);
+    }
+
+	public function success_message_callback()
+    {
+		$val = isset( $this->options['success_message'] ) ? esc_attr( $this->options['success_message']) : '';
+
+        printf('<textarea type="text" id="success_message" name="evercate-signup_options[success_message]">%s</textarea>', $val);
+    }
+
+	public function error_title_callback()
+    {
+		$val = isset( $this->options['error_title'] ) ? esc_attr( $this->options['error_title']) : '';
+
+        printf('<input type="text" id="error_title" name="evercate-signup_options[error_title]" value="%s" />', $val);
+    }
+
+	public function error_message_callback()
+    {
+		$val = isset( $this->options['error_message'] ) ? esc_attr( $this->options['error_message']) : '';
+
+        printf('<textarea type="text" id="error_message" name="evercate-signup_options[error_message]">%s</textarea>', $val);
+    }
+
+	public function send_button_label_callback()
+    {
+		$val = isset( $this->options['send_button_label'] ) ? esc_attr( $this->options['send_button_label']) : '';
+
+        printf('<input type="text" id="send_button_label" name="evercate-signup_options[send_button_label]" value="%s" />', $val);
     }
 }
 
