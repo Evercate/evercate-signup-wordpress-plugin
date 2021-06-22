@@ -343,7 +343,7 @@ function signup_submit_handle()
 }
 
 add_action( 'wp_ajax_evercate-signup-submit', 'signup_submit_handle' );
-add_action( 'wp_ajax_nopriv_vercate-signup-submit', 'signup_submit_handle' );
+add_action( 'wp_ajax_nopriv_evercate-signup-submit', 'signup_submit_handle' );
 
 function send_error_mail($message)
 {
