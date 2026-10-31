@@ -3,7 +3,7 @@ version: '3.1'
 services:
 
   wordpress:
-    image: wordpress:5.7.2-php7.4-apache
+    image: wordpress:5.9.3-php7.4-apache
     restart: always
     ports:
       - 8080:80
@@ -18,7 +18,7 @@ services:
       - ./evercate-signup-wordpress-plugin/:/var/www/html/wp-content/plugins/evercate-signup-wordpress-plugin
 
   db:
-    image: mariadb:10.3.29
+    image: mariadb:10.3.39
     restart: always
     environment:
       MYSQL_DATABASE: exampledb
